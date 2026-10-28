@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String             @id @default(uuid())
+  name          String?
+  email         String?            @unique
+  emailVerified DateTime?
+  phone         String?            @unique
+  phoneVerified DateTime?
+  image         String?
+  targetGoal    String             @default("MAINTAIN")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  exercises     Exercise[]         @relation("UserExercises")
+  workoutPlans  WorkoutPlan[]
+  comments      Comment[]
+  logs          WorkoutLog[]
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model OtpVerification {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Exercise {
+  id          String                 @id @default(uuid())
+  title       String
+  description String
+  mediaUrl    String?
+  mediaType   String?
+  sourceUrl   String?
+  isCustom    Boolean                @default(false)
+  userId      String?
+  user        User?                  @relation("UserExercises", fields: [userId], references: [id])
+  categories  CategoriesOnExercises[]
+  workoutDays WorkoutDayToExercise[]
+  logs        WorkoutLog[]
+}
+
+model Category {
+  id        String                 @id @default(uuid())
+  name      String                 @unique
+  exercises CategoriesOnExercises[]
+}
+
+model CategoriesOnExercises {
+  exerciseId String
+  categoryId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, categoryId])
+}
+
+model WorkoutPlan {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days      WorkoutDay[]
+  createdAt DateTime     @default(now())
+}
+
+model WorkoutDay {
+  id          String                 @id @default(uuid())
+  planId      String
+  workoutPlan WorkoutPlan            @relation(fields: [planId], references: [id], onDelete: Cascade)
+  dayOfWeek   Int
+  exercises   WorkoutDayToExercise[]
+  notes       String?
+}
+
+model WorkoutDayToExercise {
+  workoutDayId String
+  exerciseId   String
+  order        Int
+  workoutDay   WorkoutDay @relation(fields: [workoutDayId], references: [id], onDelete: Cascade)
+  exercise     Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@id([workoutDayId, exerciseId])
+}
+
+model Comment {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contextType String
+  contextId   String
+  text        String
+  createdAt   DateTime @default(now())
+}
+
+model WorkoutLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  date       String
+  done       Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, exerciseId, date])
+}
